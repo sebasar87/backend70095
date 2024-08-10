@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Products</title>
+</head>
+<body>
+    <h1>Real-time Product List</h1>
+    <ul id="product-list">
+        {{#each products}}
+        <li id="product-{{this.id}}">{{this.title}} - ${{this.price}} 
+            <button onclick="deleteProduct({{this.id}})">Eliminar</button>
+        </li>
+        {{/each}}
+    </ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+// Escuchar el evento 'product-updated' para actualizar la lista de productos en tiempo real
+        socket.on('product-updated', (products) => {
+            const list = document.getElementById('product-list');
+            list.innerHTML = ''; // Limpia la lista actual
+
+// Recorre los productos y agrega cada uno a la lista
+            products.forEach(product => {
+                const item = document.createElement('li');
+                item.id = `product-${product.id}`;
+                item.innerHTML = `${product.title} - $${product.price} 
+                    <button onclick="deleteProduct(${product.id})">Eliminar</button>`;
+                list.appendChild(item);
+            });
+        });
+
+// Escuchar el evento 'product-deleted' para eliminar un producto de la lista en tiempo real
+        socket.on('product-deleted', (productId) => {
+            const item = document.getElementById(`product-${productId}`);
+            if (item) {
+                item.remove(); // Elimina el elemento del DOM
+            }
+        });
+
+// Función para eliminar un producto mediante una solicitud HTTP y notificar al servidor
+        function deleteProduct(id) {
+            fetch(`/api/products/${id}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        socket.emit('product-deleted', id); // Emitir evento de eliminación
+                    }
+                })
+                .catch(error => console.error('Error deleting product:', error));
+        }
+    </script>
+</body>
+</html>
